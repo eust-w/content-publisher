@@ -49,6 +49,20 @@ interface ProviderSummary {
   missing: string[]
   callbackUrl: string
   scopes: string[]
+  clientId?: string
+}
+
+interface ProviderDraft {
+  clientId: string
+  clientSecret: string
+}
+
+interface ManualAccountDraft {
+  accountId: string
+  label: string
+  accessToken: string
+  uploadEndpoint: string
+  note: string
 }
 
 function App() {
@@ -57,6 +71,9 @@ function App() {
   const [accounts, setAccounts] = useState<AccountSummary[]>([])
   const [providers, setProviders] = useState<ProviderSummary[]>([])
   const [authServerOnline, setAuthServerOnline] = useState(false)
+  const [providerDrafts, setProviderDrafts] = useState<Record<string, ProviderDraft>>({})
+  const [manualDrafts, setManualDrafts] = useState<Record<string, ManualAccountDraft>>({})
+  const [saveStatus, setSaveStatus] = useState<Record<string, string>>({})
   const selectedDraft = drafts.find((draft) => draft.id === selectedDraftId) ?? drafts[0]
   const summary = useMemo(() => summarizeQueue(drafts), [drafts])
   const packages = useMemo(() => buildPublishPackages(selectedDraft), [selectedDraft])
@@ -74,6 +91,130 @@ function App() {
       setAuthServerOnline(true)
     } catch {
       setAuthServerOnline(false)
+    }
+  }
+  const updateProviderDraft = (
+    platform: ProviderSummary['platform'],
+    field: keyof ProviderDraft,
+    value: string,
+  ) => {
+    setProviderDrafts((current) => ({
+      ...current,
+      [platform]: {
+        clientId: current[platform]?.clientId ?? '',
+        clientSecret: current[platform]?.clientSecret ?? '',
+        [field]: value,
+      },
+    }))
+  }
+  const saveProviderConfig = async (provider: ProviderSummary) => {
+    const draft = providerDrafts[provider.platform]
+
+    if (!draft?.clientId.trim()) {
+      setSaveStatus((current) => ({
+        ...current,
+        [provider.platform]: 'Client ID is required.',
+      }))
+      return
+    }
+
+    try {
+      const response = await fetch(`${authApiBase}/api/provider-configs/${provider.platform}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(draft),
+      })
+      const payload = (await response.json()) as {
+        providers?: ProviderSummary[]
+        error?: string
+      }
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? `HTTP ${response.status}`)
+      }
+
+      if (payload.providers) {
+        setProviders(payload.providers)
+      }
+
+      setAuthServerOnline(true)
+      setSaveStatus((current) => ({
+        ...current,
+        [provider.platform]: 'Saved to local MongoDB.',
+      }))
+      setProviderDrafts((current) => ({
+        ...current,
+        [provider.platform]: {
+          clientId: '',
+          clientSecret: '',
+        },
+      }))
+    } catch (error) {
+      setAuthServerOnline(false)
+      setSaveStatus((current) => ({
+        ...current,
+        [provider.platform]: error instanceof Error ? error.message : String(error),
+      }))
+    }
+  }
+  const updateManualDraft = (
+    platform: string,
+    field: keyof ManualAccountDraft,
+    value: string,
+  ) => {
+    setManualDrafts((current) => ({
+      ...current,
+      [platform]: {
+        accountId: current[platform]?.accountId ?? '',
+        label: current[platform]?.label ?? '',
+        accessToken: current[platform]?.accessToken ?? '',
+        uploadEndpoint: current[platform]?.uploadEndpoint ?? '',
+        note: current[platform]?.note ?? '',
+        [field]: value,
+      },
+    }))
+  }
+  const saveManualAccount = async (platform: 'bilibili' | 'xhs') => {
+    const draft = manualDrafts[platform]
+
+    try {
+      const response = await fetch(`${authApiBase}/api/accounts/${platform}/manual`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(draft ?? {}),
+      })
+      const payload = (await response.json()) as { error?: string }
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? `HTTP ${response.status}`)
+      }
+
+      setAuthServerOnline(true)
+      setSaveStatus((current) => ({
+        ...current,
+        [platform]: 'Saved to local MongoDB.',
+      }))
+      setManualDrafts((current) => ({
+        ...current,
+        [platform]: {
+          accountId: '',
+          label: '',
+          accessToken: '',
+          uploadEndpoint: '',
+          note: '',
+        },
+      }))
+      await loadAccounts()
+    } catch (error) {
+      setAuthServerOnline(false)
+      setSaveStatus((current) => ({
+        ...current,
+        [platform]: error instanceof Error ? error.message : String(error),
+      }))
     }
   }
 
@@ -291,35 +432,138 @@ function App() {
                   <strong>{provider.label}</strong>
                   <span>
                     {provider.configured
-                      ? accountLabel(accounts, provider.platform)
+                      ? `${accountLabel(accounts, provider.platform)} App ${provider.clientId ?? 'configured'}.`
                       : `Missing ${provider.missing.join(', ')}`}
                   </span>
+                  <div className="provider-config-form">
+                    <label>
+                      <span>Client ID</span>
+                      <input
+                        type="text"
+                        value={providerDrafts[provider.platform]?.clientId ?? ''}
+                        placeholder={provider.clientId ?? 'Paste client id'}
+                        onChange={(event) =>
+                          updateProviderDraft(provider.platform, 'clientId', event.currentTarget.value)
+                        }
+                      />
+                    </label>
+                    <label>
+                      <span>Client Secret</span>
+                      <input
+                        type="password"
+                        value={providerDrafts[provider.platform]?.clientSecret ?? ''}
+                        placeholder="Secret; blank keeps saved"
+                        onChange={(event) =>
+                          updateProviderDraft(
+                            provider.platform,
+                            'clientSecret',
+                            event.currentTarget.value,
+                          )
+                        }
+                      />
+                    </label>
+                  </div>
+                  <small className="callback-url">Callback: {provider.callbackUrl}</small>
+                  {saveStatus[provider.platform] ? (
+                    <small className="save-status">{saveStatus[provider.platform]}</small>
+                  ) : null}
                 </div>
-                {provider.configured ? (
-                  <a className="connect-button" href={`${authApiBase}/auth/${provider.platform}/start`}>
-                    <ExternalLink size={14} aria-hidden="true" />
-                    Login
-                  </a>
-                ) : (
-                  <button className="connect-button disabled" type="button" disabled>
-                    Configure
+                <div className="connection-actions">
+                  <button
+                    className="connect-button"
+                    type="button"
+                    onClick={() => void saveProviderConfig(provider)}
+                  >
+                    Save App
                   </button>
-                )}
+                  {provider.configured ? (
+                    <a className="connect-button" href={`${authApiBase}/auth/${provider.platform}/start`}>
+                      <ExternalLink size={14} aria-hidden="true" />
+                      Login
+                    </a>
+                  ) : (
+                    <button className="connect-button disabled" type="button" disabled>
+                      Login
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
             <div className="connection-row">
               <div>
                 <strong>B站</strong>
-                <span>Store approved Open Platform token and upload endpoint from `.env.local`.</span>
+                <span>{accountLabel(accounts, 'bilibili')}</span>
+                <div className="provider-config-form">
+                  <label>
+                    <span>Access Token</span>
+                    <input
+                      type="password"
+                      value={manualDrafts.bilibili?.accessToken ?? ''}
+                      placeholder="Approved Bilibili token"
+                      onChange={(event) =>
+                        updateManualDraft('bilibili', 'accessToken', event.currentTarget.value)
+                      }
+                    />
+                  </label>
+                  <label>
+                    <span>Upload Endpoint</span>
+                    <input
+                      type="text"
+                      value={manualDrafts.bilibili?.uploadEndpoint ?? ''}
+                      placeholder="Approved upload endpoint"
+                      onChange={(event) =>
+                        updateManualDraft('bilibili', 'uploadEndpoint', event.currentTarget.value)
+                      }
+                    />
+                  </label>
+                </div>
+                {saveStatus.bilibili ? <small className="save-status">{saveStatus.bilibili}</small> : null}
               </div>
-              <code>npm run accounts:import-env</code>
+              <div className="connection-actions">
+                <button
+                  className="connect-button"
+                  type="button"
+                  onClick={() => void saveManualAccount('bilibili')}
+                >
+                  Save B站
+                </button>
+              </div>
             </div>
             <div className="connection-row">
               <div>
                 <strong>小红书</strong>
-                <span>Use exported package and official app/share confirmation; no password storage.</span>
+                <span>{accountLabel(accounts, 'xhs')}</span>
+                <div className="provider-config-form">
+                  <label>
+                    <span>Account Note</span>
+                    <input
+                      type="text"
+                      value={manualDrafts.xhs?.label ?? ''}
+                      placeholder="Test account nickname"
+                      onChange={(event) => updateManualDraft('xhs', 'label', event.currentTarget.value)}
+                    />
+                  </label>
+                  <label>
+                    <span>Share Path</span>
+                    <input
+                      type="text"
+                      value={manualDrafts.xhs?.note ?? ''}
+                      placeholder="Official app/share confirmation path"
+                      onChange={(event) => updateManualDraft('xhs', 'note', event.currentTarget.value)}
+                    />
+                  </label>
+                </div>
+                {saveStatus.xhs ? <small className="save-status">{saveStatus.xhs}</small> : null}
               </div>
-              <code>manual</code>
+              <div className="connection-actions">
+                <button
+                  className="connect-button"
+                  type="button"
+                  onClick={() => void saveManualAccount('xhs')}
+                >
+                  Save 小红书
+                </button>
+              </div>
             </div>
           </div>
         </section>
@@ -399,9 +643,10 @@ function oauthProviderCards(providers: ProviderSummary[]) {
       platform: 'x',
       label: 'X',
       configured: false,
-      missing: ['X_CLIENT_ID', 'X_CLIENT_SECRET'],
+      missing: ['X_CLIENT_ID'],
       callbackUrl: `${authApiBase}/auth/x/callback`,
       scopes: [],
+      clientId: undefined,
     },
     {
       platform: 'youtube',
@@ -410,6 +655,7 @@ function oauthProviderCards(providers: ProviderSummary[]) {
       missing: ['YOUTUBE_CLIENT_ID', 'YOUTUBE_CLIENT_SECRET'],
       callbackUrl: `${authApiBase}/auth/youtube/callback`,
       scopes: [],
+      clientId: undefined,
     },
     {
       platform: 'douyin',
@@ -418,6 +664,7 @@ function oauthProviderCards(providers: ProviderSummary[]) {
       missing: ['DOUYIN_CLIENT_KEY', 'DOUYIN_CLIENT_SECRET'],
       callbackUrl: `${authApiBase}/auth/douyin/callback`,
       scopes: [],
+      clientId: undefined,
     },
   ] satisfies ProviderSummary[]
 }

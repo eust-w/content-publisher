@@ -24,4 +24,17 @@ describe('platform OAuth config', () => {
       callbackUrl: 'http://127.0.0.1:4788/auth/youtube/callback',
     })
   })
+
+  it('uses locally stored app credentials as a configured provider source', () => {
+    expect(
+      publicProviderConfig({
+        YOUTUBE_CLIENT_ID: 'youtube-client-id-1234',
+        YOUTUBE_CLIENT_SECRET: 'youtube-secret',
+      }).find((item) => item.platform === 'youtube'),
+    ).toMatchObject({
+      configured: true,
+      missing: [],
+      clientId: 'yout...1234',
+    })
+  })
 })

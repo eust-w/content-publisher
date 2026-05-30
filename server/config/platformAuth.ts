@@ -7,6 +7,7 @@ export interface OAuthProvider {
   label: string
   clientIdEnv: string
   clientSecretEnv?: string
+  clientSecretRequired?: boolean
   authorizationEndpoint: string
   tokenEndpoint: string
   scopes: string[]
@@ -23,6 +24,7 @@ export const oauthProviders: Record<OAuthPlatform, OAuthProvider> = {
     label: 'X',
     clientIdEnv: 'X_CLIENT_ID',
     clientSecretEnv: 'X_CLIENT_SECRET',
+    clientSecretRequired: false,
     authorizationEndpoint: 'https://x.com/i/oauth2/authorize',
     tokenEndpoint: 'https://api.x.com/2/oauth2/token',
     scopes: ['tweet.read', 'tweet.write', 'users.read', 'media.write', 'offline.access'],
@@ -34,6 +36,7 @@ export const oauthProviders: Record<OAuthPlatform, OAuthProvider> = {
     label: 'YouTube',
     clientIdEnv: 'YOUTUBE_CLIENT_ID',
     clientSecretEnv: 'YOUTUBE_CLIENT_SECRET',
+    clientSecretRequired: true,
     authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
     tokenEndpoint: 'https://oauth2.googleapis.com/token',
     scopes: ['https://www.googleapis.com/auth/youtube.upload'],
@@ -49,6 +52,7 @@ export const oauthProviders: Record<OAuthPlatform, OAuthProvider> = {
     label: '抖音',
     clientIdEnv: 'DOUYIN_CLIENT_KEY',
     clientSecretEnv: 'DOUYIN_CLIENT_SECRET',
+    clientSecretRequired: true,
     authorizationEndpoint: 'https://open.douyin.com/platform/oauth/connect/',
     tokenEndpoint: 'https://open.douyin.com/oauth/access_token/',
     scopes: ['video.create.bind'],
@@ -105,11 +109,31 @@ export function publicProviderConfig(env: Record<string, string | undefined>) {
   return Object.values(oauthProviders).map((provider) => ({
     platform: provider.platform,
     label: provider.label,
-    configured: Boolean(env[provider.clientIdEnv]?.trim()),
-    missing: [provider.clientIdEnv, provider.clientSecretEnv]
-      .filter((key): key is string => Boolean(key))
-      .filter((key) => !env[key]?.trim()),
+    configured: missingProviderKeys(provider, env).length === 0,
+    missing: missingProviderKeys(provider, env),
     callbackUrl: redirectUriFor(provider.platform, getAuthServerOrigin(env)),
     scopes: provider.scopes,
+    clientId: maskClientId(env[provider.clientIdEnv]),
   }))
+}
+
+function missingProviderKeys(provider: OAuthProvider, env: Record<string, string | undefined>) {
+  return [
+    provider.clientIdEnv,
+    provider.clientSecretRequired === false ? undefined : provider.clientSecretEnv,
+  ]
+    .filter((key): key is string => Boolean(key))
+    .filter((key) => !env[key]?.trim())
+}
+
+function maskClientId(clientId?: string) {
+  if (!clientId?.trim()) {
+    return undefined
+  }
+
+  if (clientId.length <= 8) {
+    return clientId
+  }
+
+  return `${clientId.slice(0, 4)}...${clientId.slice(-4)}`
 }

@@ -45,15 +45,30 @@ export interface ManualAccountInput {
   note?: string
 }
 
+export interface PlatformAppConfigDoc {
+  platform: PlatformId
+  clientId: string
+  clientSecret?: EncryptedSecret
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface PlatformAppConfigInput {
+  clientId: string
+  clientSecret?: string
+}
+
 export class TokenVault {
   private readonly accounts: Collection<StoredAccountDoc>
   private readonly states: Collection<OAuthStateDoc>
+  private readonly appConfigs: Collection<PlatformAppConfigDoc>
   private readonly key: Buffer
 
   constructor(db: Db, key: Buffer) {
     this.key = key
     this.accounts = db.collection<StoredAccountDoc>('platform_accounts')
     this.states = db.collection<OAuthStateDoc>('oauth_states')
+    this.appConfigs = db.collection<PlatformAppConfigDoc>('platform_app_configs')
   }
 
   async init() {
@@ -62,7 +77,62 @@ export class TokenVault {
       this.accounts.createIndex({ updatedAt: -1 }),
       this.states.createIndex({ state: 1 }, { unique: true }),
       this.states.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
+      this.appConfigs.createIndex({ platform: 1 }, { unique: true }),
     ])
+  }
+
+  async upsertPlatformAppConfig(platform: PlatformId, input: PlatformAppConfigInput) {
+    const now = new Date()
+    const update: Partial<PlatformAppConfigDoc> = {
+      platform,
+      clientId: input.clientId.trim(),
+      updatedAt: now,
+    }
+
+    if (!update.clientId) {
+      throw new Error('Client ID is required.')
+    }
+
+    if (input.clientSecret?.trim()) {
+      update.clientSecret = encryptSecret(input.clientSecret.trim(), this.key)
+    }
+
+    await this.appConfigs.updateOne(
+      { platform },
+      {
+        $set: update,
+        $setOnInsert: { createdAt: now },
+      },
+      { upsert: true },
+    )
+  }
+
+  async providerCredentialEnv() {
+    const configs = await this.appConfigs.find().toArray()
+    const env: Record<string, string | undefined> = {}
+
+    for (const config of configs) {
+      const clientSecret = config.clientSecret
+        ? decryptSecret(config.clientSecret, this.key)
+        : undefined
+
+      if (config.platform === 'x') {
+        env.X_CLIENT_ID = config.clientId
+        env.X_CLIENT_SECRET = clientSecret
+      }
+
+      if (config.platform === 'youtube') {
+        env.YOUTUBE_CLIENT_ID = config.clientId
+        env.YOUTUBE_CLIENT_SECRET = clientSecret
+      }
+
+      if (config.platform === 'douyin') {
+        env.DOUYIN_CLIENT_KEY = config.clientId
+        env.DOUYIN_CLIENT_SECRET = clientSecret
+      }
+    }
+
+    return env
   }
 
   async saveOAuthState(state: OAuthStateDoc) {

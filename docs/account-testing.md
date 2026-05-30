@@ -14,9 +14,13 @@ This repo never needs raw account passwords or browser cookies. Use official dev
 
 ## Local Setup
 
-Create `.env.local` from `.env.example` and fill only the platforms you want to test.
+For normal login-based storage, do not create `.env.local`. Start the local OAuth/MongoDB token vault and fill developer app credentials from the dashboard.
 
-For login-based storage, first configure developer app credentials:
+```bash
+npm run auth:server
+```
+
+Open `http://127.0.0.1:5173/`, go to **Account connections**, paste the platform developer app `Client ID` and `Client Secret`, then click **Save App**. The values are encrypted and stored in local MongoDB before login starts.
 
 | Platform | Developer-app values | Callback URL to register |
 | --- | --- | --- |
@@ -24,15 +28,11 @@ For login-based storage, first configure developer app credentials:
 | YouTube | `YOUTUBE_CLIENT_ID`, `YOUTUBE_CLIENT_SECRET` | `http://127.0.0.1:4788/auth/youtube/callback` |
 | Douyin | `DOUYIN_CLIENT_KEY`, `DOUYIN_CLIENT_SECRET` | `http://127.0.0.1:4788/auth/douyin/callback` |
 
-Then start the local OAuth/MongoDB token vault:
+After **Save App** succeeds, click **Login** for that platform. The callback stores encrypted account tokens in local MongoDB collection `content_publisher.platform_accounts`. A local `.content-publisher.key` file is generated for encryption and is gitignored.
 
-```bash
-npm run auth:server
-```
+Bilibili can also be saved from the same page after Open Platform approval: paste the approved access token and upload endpoint, then click **Save B站**. Xiaohongshu stores only the test-account/share-path note; it does not store account passwords or bypass the official app confirmation.
 
-Open the dashboard and use **Account connections** to log in. The callback stores encrypted tokens in local MongoDB collection `content_publisher.platform_accounts`. A local `.content-publisher.key` file is generated for encryption and is gitignored.
-
-If you already have tokens in `.env.local`, import them into MongoDB:
+`.env.local` is now optional. Use it only for advanced overrides such as a custom MongoDB URI or importing existing raw tokens:
 
 ```bash
 npm run accounts:import-env

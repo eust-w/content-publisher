@@ -58,14 +58,29 @@ async function route(request: IncomingMessage, response: ServerResponse) {
   }
 
   if (request.method === 'GET' && requestUrl.pathname === '/api/providers') {
-    sendJson(response, 200, { providers: publicProviderConfig(env) })
+    sendJson(response, 200, { providers: await publicProviders() })
     return
   }
 
   if (request.method === 'GET' && requestUrl.pathname === '/api/accounts') {
     sendJson(response, 200, {
-      providers: publicProviderConfig(env),
+      providers: await publicProviders(),
       accounts: await vault.listAccountSummaries(),
+    })
+    return
+  }
+
+  const appConfig = requestUrl.pathname.match(/^\/api\/provider-configs\/([^/]+)$/)
+  if (request.method === 'POST' && appConfig) {
+    const platform = readOAuthPlatform(appConfig[1])
+    const body = await readJsonBody(request)
+    await vault.upsertPlatformAppConfig(platform, {
+      clientId: requiredString(body.clientId, 'clientId'),
+      clientSecret: readString(body.clientSecret),
+    })
+    sendJson(response, 200, {
+      ok: true,
+      providers: await publicProviders(),
     })
     return
   }
@@ -110,12 +125,13 @@ async function route(request: IncomingMessage, response: ServerResponse) {
 async function startOAuth(platformText: string, response: ServerResponse) {
   const platform = readOAuthPlatform(platformText)
   const provider = oauthProviders[platform]
+  const providerEnv = await runtimeProviderEnv()
   const state = randomUrlSafe(24)
   const codeVerifier = provider.pkce ? randomUrlSafe(64) : undefined
   const redirectUri = redirectUriFor(platform, origin)
   const url = buildAuthorizationUrl({
     provider,
-    env,
+    env: providerEnv,
     state,
     redirectUri,
     codeChallenge: codeVerifier ? createCodeChallenge(codeVerifier) : undefined,
@@ -159,7 +175,7 @@ async function finishOAuth(platformText: string, requestUrl: URL, response: Serv
 
   const token = await exchangeOAuthCode({
     provider: oauthProviders[platform],
-    env,
+    env: await runtimeProviderEnv(),
     code,
     redirectUri: savedState.redirectUri,
     codeVerifier: savedState.codeVerifier,
@@ -173,6 +189,17 @@ async function finishOAuth(platformText: string, requestUrl: URL, response: Serv
       account.accountId,
     )} to local MongoDB.</p><p>You can close this tab.</p>`,
   )
+}
+
+async function runtimeProviderEnv() {
+  return {
+    ...env,
+    ...(await vault.providerCredentialEnv()),
+  }
+}
+
+async function publicProviders() {
+  return publicProviderConfig(await runtimeProviderEnv())
 }
 
 function readOAuthPlatform(value: string): OAuthPlatform {
@@ -213,6 +240,16 @@ async function readJsonBody(request: IncomingMessage) {
 
 function readString(value: unknown) {
   return typeof value === 'string' && value.trim() ? value : undefined
+}
+
+function requiredString(value: unknown, field: string) {
+  const text = readString(value)
+
+  if (!text) {
+    throw new Error(`${field} is required.`)
+  }
+
+  return text
 }
 
 function sendJson(response: ServerResponse, status: number, payload: unknown) {

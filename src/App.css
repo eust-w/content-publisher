@@ -528,6 +528,45 @@
   font-size: 12px;
 }
 
+.provider-config-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.provider-config-form label {
+  display: grid;
+  gap: 5px;
+}
+
+.provider-config-form input {
+  width: 100%;
+  min-width: 0;
+  min-height: 34px;
+  color: var(--text-strong);
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0 9px;
+  font: inherit;
+  font-size: 13px;
+}
+
+.callback-url,
+.save-status {
+  display: block;
+  margin-top: 8px;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+
+.save-status {
+  color: #155e63;
+  font-weight: 700;
+}
+
 .credential-row code,
 .connection-row code {
   justify-self: end;
@@ -538,6 +577,13 @@
   border-radius: 6px;
   padding: 6px 8px;
   font-size: 12px;
+}
+
+.connection-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .icon-button,
@@ -642,8 +688,17 @@ input:focus-visible {
 
   .credential-row code,
   .connection-row code,
-  .connect-button {
+  .connect-button,
+  .connection-actions {
     justify-self: stretch;
+  }
+
+  .connection-actions {
+    justify-content: stretch;
+  }
+
+  .provider-config-form {
+    grid-template-columns: 1fr;
   }
 
   .boundary-row {
