@@ -9,12 +9,16 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
+    "auth:server": "tsx server/authServer.ts",
+    "accounts:list": "tsx scripts/accounts-list.ts",
+    "accounts:import-env": "tsx scripts/accounts-import-env.ts",
     "publish:check": "tsx scripts/publish-check.ts",
     "publish:dry-run": "tsx scripts/publish-dry-run.ts",
     "publish:live": "tsx scripts/publish-live.ts"
   },
   "dependencies": {
     "lucide-react": "^1.17.0",
+    "mongodb": "^7.2.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6"
   },

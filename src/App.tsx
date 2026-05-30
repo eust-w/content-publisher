@@ -4,11 +4,13 @@ import {
   Boxes,
   CheckCircle2,
   CircleAlert,
+  ExternalLink,
   FileText,
   Image as ImageIcon,
   LayoutDashboard,
   PackageCheck,
   Plus,
+  RefreshCcw,
   Search,
   Settings,
   UploadCloud,
@@ -29,13 +31,51 @@ import {
 import { credentialRequirements, summarizeCredentialReadiness } from './publishing/credentials'
 import './App.css'
 
+const authApiBase = import.meta.env.VITE_AUTH_API_BASE ?? 'http://127.0.0.1:4788'
+
+interface AccountSummary {
+  platform: string
+  accountId: string
+  label: string
+  source: string
+  updatedAt: string
+  hasAccessToken: boolean
+}
+
+interface ProviderSummary {
+  platform: 'x' | 'youtube' | 'douyin'
+  label: string
+  configured: boolean
+  missing: string[]
+  callbackUrl: string
+  scopes: string[]
+}
+
 function App() {
   const [drafts] = useState<ContentDraft[]>(seedDrafts)
   const [selectedDraftId, setSelectedDraftId] = useState(seedDrafts[0].id)
+  const [accounts, setAccounts] = useState<AccountSummary[]>([])
+  const [providers, setProviders] = useState<ProviderSummary[]>([])
+  const [authServerOnline, setAuthServerOnline] = useState(false)
   const selectedDraft = drafts.find((draft) => draft.id === selectedDraftId) ?? drafts[0]
   const summary = useMemo(() => summarizeQueue(drafts), [drafts])
   const packages = useMemo(() => buildPublishPackages(selectedDraft), [selectedDraft])
   const credentialReadiness = useMemo(() => summarizeCredentialReadiness({}), [])
+  const loadAccounts = async () => {
+    try {
+      const response = await fetch(`${authApiBase}/api/accounts`)
+      const payload = (await response.json()) as {
+        accounts: AccountSummary[]
+        providers: ProviderSummary[]
+      }
+
+      setAccounts(payload.accounts)
+      setProviders(payload.providers)
+      setAuthServerOnline(true)
+    } catch {
+      setAuthServerOnline(false)
+    }
+  }
 
   return (
     <div className="app-shell">
@@ -227,6 +267,62 @@ function App() {
             ))}
           </div>
         </section>
+
+        <section className="account-panel" aria-label="Account connections">
+          <div className="section-heading">
+            <div>
+              <h2>Account connections</h2>
+              <p>
+                {authServerOnline
+                  ? 'Local MongoDB token vault is reachable.'
+                  : 'Run npm run auth:server, then click Refresh to check the local token vault.'}
+              </p>
+            </div>
+            <button className="icon-button" type="button" onClick={() => void loadAccounts()}>
+              <RefreshCcw size={15} aria-hidden="true" />
+              Refresh
+            </button>
+          </div>
+
+          <div className="connection-grid">
+            {oauthProviderCards(providers).map((provider) => (
+              <div className="connection-row" key={provider.platform}>
+                <div>
+                  <strong>{provider.label}</strong>
+                  <span>
+                    {provider.configured
+                      ? accountLabel(accounts, provider.platform)
+                      : `Missing ${provider.missing.join(', ')}`}
+                  </span>
+                </div>
+                {provider.configured ? (
+                  <a className="connect-button" href={`${authApiBase}/auth/${provider.platform}/start`}>
+                    <ExternalLink size={14} aria-hidden="true" />
+                    Login
+                  </a>
+                ) : (
+                  <button className="connect-button disabled" type="button" disabled>
+                    Configure
+                  </button>
+                )}
+              </div>
+            ))}
+            <div className="connection-row">
+              <div>
+                <strong>B站</strong>
+                <span>Store approved Open Platform token and upload endpoint from `.env.local`.</span>
+              </div>
+              <code>npm run accounts:import-env</code>
+            </div>
+            <div className="connection-row">
+              <div>
+                <strong>小红书</strong>
+                <span>Use exported package and official app/share confirmation; no password storage.</span>
+              </div>
+              <code>manual</code>
+            </div>
+          </div>
+        </section>
       </main>
     </div>
   )
@@ -291,6 +387,49 @@ function statusLabel(status: DraftStatus) {
   }
 
   return labels[status]
+}
+
+function oauthProviderCards(providers: ProviderSummary[]) {
+  if (providers.length > 0) {
+    return providers
+  }
+
+  return [
+    {
+      platform: 'x',
+      label: 'X',
+      configured: false,
+      missing: ['X_CLIENT_ID', 'X_CLIENT_SECRET'],
+      callbackUrl: `${authApiBase}/auth/x/callback`,
+      scopes: [],
+    },
+    {
+      platform: 'youtube',
+      label: 'YouTube',
+      configured: false,
+      missing: ['YOUTUBE_CLIENT_ID', 'YOUTUBE_CLIENT_SECRET'],
+      callbackUrl: `${authApiBase}/auth/youtube/callback`,
+      scopes: [],
+    },
+    {
+      platform: 'douyin',
+      label: '抖音',
+      configured: false,
+      missing: ['DOUYIN_CLIENT_KEY', 'DOUYIN_CLIENT_SECRET'],
+      callbackUrl: `${authApiBase}/auth/douyin/callback`,
+      scopes: [],
+    },
+  ] satisfies ProviderSummary[]
+}
+
+function accountLabel(accounts: AccountSummary[], platform: string) {
+  const account = accounts.find((item) => item.platform === platform)
+
+  if (!account) {
+    return 'Ready to login; no token stored yet.'
+  }
+
+  return `${account.label} · stored ${new Date(account.updatedAt).toLocaleString()}`
 }
 
 function exportPackage(draft: ContentDraft) {

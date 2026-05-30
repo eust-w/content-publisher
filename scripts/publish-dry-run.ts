@@ -1,5 +1,6 @@
 import { seedDrafts } from '../src/domain/publishPlan'
 import { buildPublishQueue, runPublishQueue } from '../src/publishing/publishQueue'
+import { tryLoadStoredCredentialEnv } from '../server/storage/storedCredentialEnv'
 import { parsePublishArgs } from './lib/args'
 import { envMap, loadLocalEnv } from './lib/env'
 
@@ -7,7 +8,11 @@ loadLocalEnv()
 
 const args = parsePublishArgs()
 const draft = seedDrafts.find((item) => item.id === args.draftId) ?? seedDrafts[0]
-const credentials = envMap()
+const runtimeEnv = envMap()
+const credentials = {
+  ...(await tryLoadStoredCredentialEnv(runtimeEnv)),
+  ...runtimeEnv,
+}
 const jobs = buildPublishQueue(draft, credentials).filter(
   (job) => !args.platform || job.platform === args.platform,
 )

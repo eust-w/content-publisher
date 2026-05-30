@@ -189,7 +189,8 @@
 .pipeline-panel,
 .inspector-panel,
 .platform-boundaries,
-.credential-panel {
+.credential-panel,
+.account-panel {
   background: #ffffff;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -485,12 +486,18 @@
   padding: 16px;
 }
 
-.credential-grid {
+.account-panel {
+  padding: 16px;
+}
+
+.credential-grid,
+.connection-grid {
   display: grid;
   gap: 8px;
 }
 
-.credential-row {
+.credential-row,
+.connection-row {
   display: grid;
   grid-template-columns: minmax(150px, 0.8fr) minmax(0, 1.4fr);
   gap: 12px;
@@ -502,22 +509,27 @@
 }
 
 .credential-row strong,
-.credential-row span {
+.credential-row span,
+.connection-row strong,
+.connection-row span {
   display: block;
 }
 
-.credential-row strong {
+.credential-row strong,
+.connection-row strong {
   color: var(--text-strong);
   font-size: 14px;
 }
 
-.credential-row span {
+.credential-row span,
+.connection-row span {
   margin-top: 4px;
   color: var(--text-muted);
   font-size: 12px;
 }
 
-.credential-row code {
+.credential-row code,
+.connection-row code {
   justify-self: end;
   max-width: 100%;
   overflow-wrap: anywhere;
@@ -526,6 +538,41 @@
   border-radius: 6px;
   padding: 6px 8px;
   font-size: 12px;
+}
+
+.icon-button,
+.connect-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: max-content;
+  justify-self: end;
+  min-height: 32px;
+  color: var(--text-strong);
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.icon-button,
+.connect-button:not(.disabled) {
+  cursor: pointer;
+}
+
+.connect-button:not(.disabled):hover,
+.icon-button:hover {
+  border-color: #95c9c7;
+  background: #f7fbfa;
+}
+
+.connect-button.disabled {
+  color: var(--text-muted);
 }
 
 .boundary-row {
@@ -588,11 +635,14 @@ input:focus-visible {
 
   .content-grid,
   .platform-boundaries,
-  .credential-row {
+  .credential-row,
+  .connection-row {
     grid-template-columns: 1fr;
   }
 
-  .credential-row code {
+  .credential-row code,
+  .connection-row code,
+  .connect-button {
     justify-self: stretch;
   }
 
