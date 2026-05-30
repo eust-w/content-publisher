@@ -26,6 +26,7 @@ import {
   type DraftStatus,
   type PublishMode,
 } from './domain/publishPlan'
+import { credentialRequirements, summarizeCredentialReadiness } from './publishing/credentials'
 import './App.css'
 
 function App() {
@@ -34,6 +35,7 @@ function App() {
   const selectedDraft = drafts.find((draft) => draft.id === selectedDraftId) ?? drafts[0]
   const summary = useMemo(() => summarizeQueue(drafts), [drafts])
   const packages = useMemo(() => buildPublishPackages(selectedDraft), [selectedDraft])
+  const credentialReadiness = useMemo(() => summarizeCredentialReadiness({}), [])
 
   return (
     <div className="app-shell">
@@ -200,6 +202,30 @@ function App() {
               <p>{capability.boundary}</p>
             </div>
           ))}
+        </section>
+
+        <section className="credential-panel" id="settings" aria-label="Credential checklist">
+          <div className="section-heading">
+            <div>
+              <h2>Credential checklist</h2>
+              <p>Live posting stays locked until the matching environment variables are present.</p>
+            </div>
+          </div>
+          <div className="credential-grid">
+            {credentialReadiness.map((item) => (
+              <div className="credential-row" key={item.platform}>
+                <div>
+                  <strong>{platformCapabilities[item.platform].label}</strong>
+                  <span>{item.ready ? 'ready for local package flow' : 'missing live credentials'}</span>
+                </div>
+                <code>
+                  {credentialRequirements[item.platform].length > 0
+                    ? credentialRequirements[item.platform].map((requirement) => requirement.key).join(', ')
+                    : 'no server token'}
+                </code>
+              </div>
+            ))}
+          </div>
         </section>
       </main>
     </div>

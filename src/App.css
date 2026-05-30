@@ -188,7 +188,8 @@
 .metric,
 .pipeline-panel,
 .inspector-panel,
-.platform-boundaries {
+.platform-boundaries,
+.credential-panel {
   background: #ffffff;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -480,6 +481,53 @@
   gap: 0;
 }
 
+.credential-panel {
+  padding: 16px;
+}
+
+.credential-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.credential-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.8fr) minmax(0, 1.4fr);
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  background: #fbfcfc;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.credential-row strong,
+.credential-row span {
+  display: block;
+}
+
+.credential-row strong {
+  color: var(--text-strong);
+  font-size: 14px;
+}
+
+.credential-row span {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.credential-row code {
+  justify-self: end;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  color: #40516a;
+  background: #edf2f7;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
 .boundary-row {
   display: grid;
   gap: 6px;
@@ -539,8 +587,13 @@ input:focus-visible {
   }
 
   .content-grid,
-  .platform-boundaries {
+  .platform-boundaries,
+  .credential-row {
     grid-template-columns: 1fr;
+  }
+
+  .credential-row code {
+    justify-self: stretch;
   }
 
   .boundary-row {
@@ -561,6 +614,12 @@ input:focus-visible {
   .nav-item {
     gap: 7px;
     padding: 8px;
+  }
+
+  .nav-item {
+    justify-content: center;
+    width: 38px;
+    font-size: 0;
   }
 
   .workspace {

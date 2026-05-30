@@ -16,6 +16,8 @@ export interface ContentAsset {
   id: string
   kind: AssetKind
   name: string
+  path?: string
+  mimeType?: string
   durationSeconds?: number
   aspectRatio?: string
 }

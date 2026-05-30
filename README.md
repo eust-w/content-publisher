@@ -6,8 +6,10 @@ Low-cost, local-first content operations repo for managing text, image, image-pl
 
 - React + Vite dashboard for draft and asset management.
 - TypeScript domain rules for platform capability, validation, and publish package generation.
+- Publish queue and adapter layer for X, YouTube, Douyin, Bilibili handoff, and Xiaohongshu manual packages.
+- CLI commands for credential checks, dry runs, and guarded single-platform live publishing.
 - Manual-review export path for platforms where stable public posting APIs should not be assumed.
-- Official API-ready path for YouTube and X, with adapters to be added behind environment variables.
+- Official API-ready path for YouTube, X, and Douyin behind environment variables.
 
 ## Platform Boundaries
 
@@ -16,6 +18,7 @@ Low-cost, local-first content operations repo for managing text, image, image-pl
 - Bilibili: official capability application first, then upload adapter.
 - Douyin: official capability plus user confirmation flow.
 - Xiaohongshu: manual-review publishing package first.
+- See `docs/account-testing.md` for the exact test inputs needed.
 
 ## Commands
 
@@ -25,6 +28,9 @@ npm test
 npm run lint
 npm run build
 npm run dev
+npm run publish:check
+npm run publish:dry-run -- --draft draft-001
+npm run publish:live -- --platform x --draft draft-003
 ```
 
 ## Cost Strategy
