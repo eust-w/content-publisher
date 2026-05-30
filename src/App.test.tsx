@@ -2,11 +2,17 @@
 import '@testing-library/jest-dom/vitest'
 import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
+import { languageStorageKey } from './i18n'
+
+beforeEach(() => {
+  window.localStorage.setItem(languageStorageKey, 'en')
+})
 
 afterEach(() => {
   cleanup()
+  window.localStorage.clear()
   vi.unstubAllGlobals()
 })
 
@@ -28,8 +34,19 @@ describe('App', () => {
 
     expect(screen.getByRole('heading', { name: 'AI 工具选型备忘' })).toBeInTheDocument()
     const inspector = screen.getByLabelText('Selected publish package')
-    expect(within(inspector).getByText('小红书')).toBeInTheDocument()
-    expect(within(inspector).getByText('手动复核')).toBeInTheDocument()
+    expect(within(inspector).getByText('Xiaohongshu')).toBeInTheDocument()
+    expect(within(inspector).getByText('Manual review')).toBeInTheDocument()
+  })
+
+  it('switches dashboard chrome to Chinese', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: '中文' }))
+
+    expect(screen.getByRole('heading', { name: '内容发布中台' })).toBeInTheDocument()
+    expect(screen.getByText('发布包')).toBeInTheDocument()
+    expect(screen.getByLabelText('队列概览')).toBeInTheDocument()
   })
 
   it('saves OAuth app credentials from the account connection panel', async () => {

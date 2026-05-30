@@ -129,6 +129,7 @@
   gap: 10px;
 }
 
+.language-switch,
 .search-box,
 .ghost-button,
 .primary-button {
@@ -139,6 +140,34 @@
   border-radius: 6px;
   font: inherit;
   font-size: 14px;
+}
+
+.language-switch {
+  gap: 2px;
+  width: 96px;
+  padding: 2px;
+  background: #ffffff;
+  border: 1px solid var(--border);
+}
+
+.language-switch button {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 32px;
+  cursor: pointer;
+  color: var(--text-muted);
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.language-switch button.active,
+.language-switch button[aria-pressed='true'] {
+  color: #ffffff;
+  background: #155e63;
 }
 
 .search-box {
@@ -650,7 +679,8 @@
 
 button:focus-visible,
 a:focus-visible,
-input:focus-visible {
+input:focus-visible,
+.language-switch button:focus-visible {
   outline: 2px solid #155e63;
   outline-offset: 2px;
 }
@@ -739,6 +769,10 @@ input:focus-visible {
 
   .search-box {
     min-width: 0;
+  }
+
+  .language-switch {
+    width: 100%;
   }
 
   .summary-grid {
