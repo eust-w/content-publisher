@@ -11,7 +11,7 @@ import {
 import { exchangeOAuthCode } from './oauth/exchange'
 import { createCodeChallenge, randomUrlSafe } from './oauth/pkce'
 import { loadOrCreateLocalEncryptionKey } from './security/tokenCrypto'
-import { connectMongo, mongoUriFromEnv } from './storage/mongo'
+import { connectMongo } from './storage/mongo'
 import { TokenVault } from './storage/tokenVault'
 
 loadLocalEnv()
@@ -36,14 +36,19 @@ const server = createServer(async (request, response) => {
 
 server.listen(port, '127.0.0.1', () => {
   console.log(`Auth server: ${origin}`)
-  console.log(`MongoDB: ${mongoUriFromEnv(env)}`)
+  console.log("MongoDB: connected")
   console.log(`Providers: ${Object.keys(oauthProviders).join(', ')}`)
 })
 
 async function route(request: IncomingMessage, response: ServerResponse) {
   const requestUrl = new URL(request.url ?? '/', origin)
 
-  setCors(response)
+  setCors(request, response)
+  const allowedOrigin = env.LOCAL_FRONTEND_ORIGIN ?? 'http://localhost:5173'
+  if (request.headers.origin && request.headers.origin !== allowedOrigin) {
+    sendJson(response, 403, { error: 'Origin not allowed' })
+    return
+  }
 
   if (request.method === 'OPTIONS') {
     response.writeHead(204)
@@ -53,7 +58,7 @@ async function route(request: IncomingMessage, response: ServerResponse) {
 
   if (request.method === 'GET' && requestUrl.pathname === '/api/health') {
     await db.command({ ping: 1 })
-    sendJson(response, 200, { ok: true, mongoUri: mongoUriFromEnv(env), origin })
+    sendJson(response, 200, { ok: true, database: "connected", origin })
     return
   }
 
@@ -266,8 +271,10 @@ function sendHtml(response: ServerResponse, status: number, html: string) {
   response.end(`<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1">${html}`)
 }
 
-function setCors(response: ServerResponse) {
-  response.setHeader('Access-Control-Allow-Origin', '*')
+function setCors(request: IncomingMessage, response: ServerResponse) {
+  const allowedOrigin = env.LOCAL_FRONTEND_ORIGIN ?? 'http://localhost:5173'
+  if (request.headers.origin === allowedOrigin) response.setHeader('Access-Control-Allow-Origin', allowedOrigin)
+  response.setHeader('Vary', 'Origin')
   response.setHeader('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS')
   response.setHeader('Access-Control-Allow-Headers', 'Content-Type')
 }
